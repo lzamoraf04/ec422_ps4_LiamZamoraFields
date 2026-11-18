@@ -91,3 +91,47 @@ liquor_cv_fc |>
 #Last month: December 2019
 
 #The ARIMA model is the better model. Both RMSE and MAE are lower.
+
+#-----------------------------------------------------------------------------
+#2.4
+#-----------------------------------------------------------------------------
+liquor_errs <- liquor_cv_fc |>
+  as_tibble() |>
+  left_join(as_tibble(liquor) |> select(Month, actual = sales),
+            by = "Month") |>
+  mutate(e = actual - .mean) |>
+  select(Month, .model, e) |>
+  pivot_wider(names_from = .model, values_from = e)
+
+forecast::dm.test(liquor_errs$arima, liquor_errs$ets, h = 1, power = 2)
+
+forecast::dm.test(liquor_errs$arima, liquor_errs$snaive, h = 1, power = 2)
+
+#ARIMA vs ETS: DM = -2.90, p-val = 0.0040
+
+#ARIMA vs SNAIVE: DM = -10.755, p-val = ~0.000
+
+#I would chose the ARIMA model, as it performs better by the metric of RMSE and MAE, 
+#and the DM test shows that the ARIMA model is significantly better than both ETS and SNAIVE.
+
+
+#-----------------------------------------------------------------------------
+#PART 3
+#-----------------------------------------------------------------------------
+#3a
+liquor_combo_fc <- liquor_cv_fit |>
+  mutate(combo = (arima + ets) / 2) |>
+  forecast(h = 1)
+
+liquor_combo_fc |>
+  accuracy(liquor, measures = list(RMSE = RMSE, MAE = MAE))
+#combo is better than ets on its own, but worse than ARIMA.
+
+#3b
+cor(liquor_errs$arima, liquor_errs$ets)
+
+#There is large correlation between the errors of ETS and ARIMA. If we could optimally
+#deal with this I would use covariance to reduce the size of a weight. because the ETS model 
+#is significantly worse than the ARIMA model via DM test, I would conclude equal weights
+# is a bad way to combine these two models.
+
